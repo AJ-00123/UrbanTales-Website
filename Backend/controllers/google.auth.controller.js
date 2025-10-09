@@ -16,7 +16,8 @@ export const googleSellerAuth = async (req, res) => {
     let seller = await Seller.findOne({ email });
 
     if (!seller) {
-      const username = name.split(" ")[0].toLowerCase() + Math.floor(Math.random() * 100000);
+      const username =
+        name.split(" ")[0].toLowerCase() + Math.floor(Math.random() * 100000);
       seller = await Seller.create({
         fullName: name,
         username,
@@ -26,7 +27,9 @@ export const googleSellerAuth = async (req, res) => {
       });
     }
 
-    const jwtToken = jwt.sign({ id: seller._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    const jwtToken = jwt.sign({ id: seller._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
     res.json({ user: seller, token: jwtToken });
   } catch (err) {
     console.error("Google Auth Error:", err);

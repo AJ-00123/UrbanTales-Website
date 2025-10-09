@@ -29,6 +29,9 @@ import Signup from './Pages/Signup.jsx';
 import Category from './Pages/Category.jsx';
 import OrderConfirmed from './Pages/OrderConfirmed.jsx';
 import Notifications from './Pages/Notifications.jsx'; // Import Notifications page
+import ResetPasswordRequest from './Pages/ResetPasswordRequest.jsx';
+import ResetPasswordOTP from './Pages/ResetPasswordOTP.jsx';
+import ResetPasswordConfirm from './Pages/ResetPasswordConfirm.jsx';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -67,7 +70,9 @@ function App() {
           <Route path="/category" element={<Category />} />
           <Route path="/orderconfirmed" element={<OrderConfirmed />} />
           <Route path="/notifications" element={<Notifications />} /> {/* Add Notifications route */}
-
+          <Route path="/reset-password" element={<ResetPasswordRequest />} />
+          <Route path="/reset-password/otp" element={<ResetPasswordOTP />} />
+          <Route path="/reset-password/confirm" element={<ResetPasswordConfirm />} />
 
           {/* Add more routes as needed */}
           

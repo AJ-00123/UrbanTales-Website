@@ -1,4 +1,3 @@
-// routes/google.routes.js
 import express from "express";
 import { googleSellerAuth } from "../controllers/google.auth.controller.js";
 

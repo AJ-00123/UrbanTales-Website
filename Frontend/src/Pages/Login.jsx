@@ -5,6 +5,7 @@ import axios from 'axios';
 import { auth, provider } from '../../utils/firebase';
 import Navbar from '../Components/Navbar';
 import Footer from '../Components/Footer';
+import { Link } from "react-router-dom";
 
 const BASE_API_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:3000';
 
@@ -94,7 +95,9 @@ const Login = () => {
                   <input type="checkbox" className="mr-2" />
                   Keep me logged in
                 </label>
-                <a href="#" className="text-sm text-blue-600 hover:underline">Forgot password</a>
+                <Link to="/reset-password" className="text-sm text-blue-600 hover:underline">
+  Forgot password
+</Link>
               </div>
 
               <button type="submit" className="w-full bg-[#070A52] text-white py-2 rounded hover:bg-[#FFCC00]">Log in</button>
