@@ -43,7 +43,7 @@ function WelcomePage() {
           {/* Left Side */}
           <div className="w-full text-center">
             <h1 className="text-4xl md:text-5xl font-bold text-blue-800 mb-6 leading-snug">
-              Welcome to <span className="text-pink-600">Zarvoc</span>
+              Welcome to <span className="text-pink-600">UrbanTales</span>
             </h1>
             <p className="text-gray-700 text-lg mb-8 max-w-md mx-auto">
               Start your journey with us — whether you're a buyer looking for great deals or a seller ready to shine!
