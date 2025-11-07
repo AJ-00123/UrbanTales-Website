@@ -20,7 +20,6 @@ function createJwt(seller) {
 export async function signup(req, res) {
   try {
     const { fullName, username, email, phone, shopName, address, bio, password } = req.body;
-
     const exists = await Seller.findOne({ email });
     if (exists) return res.status(400).json({ error: "Seller with this email already exists!" });
 
@@ -34,9 +33,7 @@ export async function signup(req, res) {
     }
 
     const hash = await bcrypt.hash(password, 10);
-    const seller = await Seller.create({
-      fullName, username: _username, email, phone, shopName, address, bio, password: hash
-    });
+    const seller = await Seller.create({ fullName, username: _username, email, phone, shopName, address, bio, password: hash });
 
     const token = createJwt(seller);
 
@@ -91,10 +88,14 @@ export async function login(req, res) {
 // Google Seller Auth (LOGIN / SIGNUP)
 export async function googleSellerAuth(req, res) {
   try {
-    const { tokenId } = req.body;
+    // Debug log to check incoming payload
+    console.log("Google Seller Login REQ BODY:", req.body);
+
+    // Allow either tokenId or credential for future compatibility
+    const tokenId = req.body.tokenId || req.body.credential;
     if (!tokenId) return res.status(400).json({ error: "No token provided" });
 
-    // Verify Google token (frontend should provide this using Google sign-in, not Admin SDK)
+    // Verify Google token
     const client = new OAuth2Client(GOOGLE_CLIENT_ID);
     const ticket = await client.verifyIdToken({ idToken: tokenId, audience: GOOGLE_CLIENT_ID });
     const payload = ticket.getPayload();
@@ -141,6 +142,7 @@ export async function googleSellerAuth(req, res) {
     });
 
   } catch (err) {
+    console.error("Google Seller Auth Error:", err); // Debug log for error
     res.status(400).json({ error: "Google login failed" });
   }
 }
@@ -172,10 +174,8 @@ export async function resetPasswordWithOtp(req, res) {
     const { email, otp, newPassword } = req.body;
     const seller = await Seller.findOne({ email });
     if (!seller) return res.status(404).json({ error: "Seller not found" });
-    if (!seller.otp || seller.otp !== otp)
-      return res.status(400).json({ error: "Invalid OTP" });
-    if (seller.otpExpiry < Date.now())
-      return res.status(400).json({ error: "OTP expired" });
+    if (!seller.otp || seller.otp !== otp) return res.status(400).json({ error: "Invalid OTP" });
+    if (seller.otpExpiry < Date.now()) return res.status(400).json({ error: "OTP expired" });
 
     seller.password = await bcrypt.hash(newPassword, 10);
     seller.otp = null;
@@ -193,10 +193,8 @@ export async function verifyOtp(req, res) {
     const { email, otp } = req.body;
     const seller = await Seller.findOne({ email });
     if (!seller) return res.status(404).json({ error: "Seller not found" });
-    if (!seller.otp || seller.otp !== otp)
-      return res.status(400).json({ error: "Invalid OTP" });
-    if (seller.otpExpiry < Date.now())
-      return res.status(400).json({ error: "OTP expired" });
+    if (!seller.otp || seller.otp !== otp) return res.status(400).json({ error: "Invalid OTP" });
+    if (seller.otpExpiry < Date.now()) return res.status(400).json({ error: "OTP expired" });
     res.json({ message: "OTP verified" });
   } catch (err) {
     res.status(500).json({ error: "OTP verification failed" });

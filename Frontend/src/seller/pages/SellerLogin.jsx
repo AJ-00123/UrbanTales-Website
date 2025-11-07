@@ -60,6 +60,7 @@ export default function SellerLogin() {
         fullName: user.displayName,
         googleId: user.uid,
       };
+      console.log("Google Seller Login Payload", payload); // Console log for debugging
       const { data } = await axios.post(
         `${BASE_API_URL}/api/sellers/auth/google-login`,
         payload
