@@ -2,7 +2,7 @@ import User from "../models/user.js";
 import bcrypt from "bcryptjs";
 import { sendResetPasswordOTP } from "../utils/sendOtpMail.js";
 
-// REQUEST OTP (1 MINUTE EXPIRY)
+// REQUEST OTP (2 MINUTE EXPIRY)
 export const requestResetPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -11,7 +11,7 @@ export const requestResetPassword = async (req, res) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     user.resetOTP = otp;
-    user.resetOTPExpires = Date.now() + 1 * 60 * 1000; // 1 minutes
+    user.resetOTPExpires = Date.now() + 2 * 60 * 1000; // 2 minutes
     await user.save();
 
     await sendResetPasswordOTP(email, otp);

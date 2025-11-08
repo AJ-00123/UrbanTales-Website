@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { HashLoader } from "react-spinners";
+import { motion } from "framer-motion";
 
 const BASE_API_URL = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:3000";
 const logoUrl = "https://drive.google.com/uc?export=view&id=1XxU_zf3_ZBDjuEWqGorEYUgBTzjoyaW_";
 
-export default function ResetPasswordOTP() {
+export default function UserVerifyOtp() {
   const [otp, setOTP] = useState("");
   const [msg, setMsg] = useState("");
-  const [type, setType] = useState("info"); // info/success/error for message coloring
-  const [timer, setTimer] = useState(60);
+  const [error, setError] = useState("");
+  const [timer, setTimer] = useState(2 * 60); // 2 min for users
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
-  const [fade, setFade] = useState(false);
   const params = new URLSearchParams(useLocation().search);
   const email = params.get("email");
   const navigate = useNavigate();
@@ -24,20 +24,22 @@ export default function ResetPasswordOTP() {
     }
   }, [timer]);
 
-  // Animation for messages
-  useEffect(() => {
-    if (msg) {
-      setFade(true);
-      const t = setTimeout(() => setFade(false), 3000);
-      return () => clearTimeout(t);
-    }
-  }, [msg]);
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMsg("");
+    setError("");
+    if (timer <= 0) {
+      setError("❌ OTP has expired. Please request a new one.");
+      setOTP(""); // Clear OTP
+      return;
+    }
     setLoading(true);
-    setType("info");
     try {
       const res = await fetch(
         `${BASE_API_URL}/api/auth/reset-password/verify`,
@@ -49,8 +51,7 @@ export default function ResetPasswordOTP() {
       );
       const data = await res.json();
       if (res.ok) {
-        setMsg("✅ OTP verified! Redirecting...");
-        setType("success");
+        setMsg("✅ OTP verified successfully! Redirecting...");
         setTimeout(
           () =>
             navigate(
@@ -58,15 +59,15 @@ export default function ResetPasswordOTP() {
                 email
               )}&otp=${otp}`
             ),
-          1200
+          1000
         );
       } else {
-        setMsg(data.msg || "❌ Invalid or expired OTP.");
-        setType("error");
+        setError(data.msg || "❌ Invalid or expired OTP.");
+        setOTP("");
       }
     } catch {
-      setMsg("⚠️ Server error. Try again later.");
-      setType("error");
+      setError("⚠️ Server error. Try again later.");
+      setOTP("");
     } finally {
       setLoading(false);
     }
@@ -75,7 +76,7 @@ export default function ResetPasswordOTP() {
   const handleResend = async () => {
     setResending(true);
     setMsg("");
-    setType("info");
+    setError("");
     try {
       const res = await fetch(
         `${BASE_API_URL}/api/auth/reset-password/request`,
@@ -87,102 +88,146 @@ export default function ResetPasswordOTP() {
       );
       const data = await res.json();
       if (res.ok) {
-        setMsg(
-          "🔁 OTP resent! Please check your inbox and, if necessary, your Spam/Junk folder."
-        );
-        setType("success");
-        setTimer(60);
+        setMsg("🔁 New OTP sent to your email! If not in Inbox, check Spam/Junk folder.");
+        setTimer(120); // 2 minute for user
+        setOTP("");
       } else {
-        setMsg(data.msg || "Failed to resend OTP.");
-        setType("error");
+        setError(data.msg || "Failed to resend OTP.");
       }
     } catch {
-      setMsg("⚠️ Server error. Try again.");
-      setType("error");
+      setError("⚠️ Server error. Try again.");
     } finally {
       setResending(false);
     }
   };
 
-  // Animation classes
-  const fadeAnim =
-    fade && msg ? "transition-opacity duration-700 opacity-100" : "opacity-0";
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-yellow-50 to-blue-50">
-      <form
-        className="relative space-y-6 bg-white shadow-2xl p-8 rounded-3xl w-full max-w-lg animate-fade-in"
-        onSubmit={handleSubmit}
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-100 via-blue-50 to-blue-100">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4 }}
+        className="w-full max-w-md"
       >
-        <img src={logoUrl} className="mx-auto w-36 mb-4 animate-pop" alt="UrbanTales" />
-        <h2 className="font-bold text-2xl mb-2 text-[#070A52] text-center">
-          Enter the OTP sent to your email
-        </h2>
-
-        <div className="text-sm text-blue-700 bg-blue-50 border-l-4 border-blue-400 rounded px-3 py-2 mb-2 animate-fade-in">
-          OTP has been sent to your registered email. <br />
-          <span className="font-medium">If you don't see it in your inbox, please check your Spam or Junk folder.</span>
-        </div>
-
-        <input
-          maxLength={6}
-          className="w-full border py-3 rounded-xl px-3 text-center tracking-widest text-2xl font-mono shadow-inner ring-1 ring-blue-200 focus:ring-2 focus:ring-yellow-400 transition-all"
-          autoFocus
-          value={otp}
-          onChange={(e) => setOTP(e.target.value.replace(/\D/, ""))}
-          placeholder="6-digit OTP"
-          required
-          disabled={loading}
-        />
-
-        <button
-          className={`w-full py-3 font-semibold rounded-xl transition bg-gradient-to-r from-[#070A52] to-[#FFCC00] text-white hover:from-[#FFCC00] hover:to-[#070A52] mt-2 disabled:opacity-50 animate-bounce-short`}
-          type="submit"
-          disabled={loading}
+        <form
+          className="bg-white shadow-2xl p-8 rounded-3xl space-y-6"
+          onSubmit={handleSubmit}
         >
-          {loading ? <HashLoader color="#fff" size={22} /> : "Verify OTP"}
-        </button>
-
-        <div className="text-center mt-2">
-          {timer > 0 ? (
-            <span className="text-gray-500 text-sm animate-pulse">
-              Resend OTP in {timer}s
-            </span>
-          ) : (
-            <button
-              type="button"
-              className="text-sm text-blue-600 hover:underline font-medium transition"
-              onClick={handleResend}
-              disabled={resending}
-            >
-              {resending ? (
-                <span className="flex items-center justify-center">
-                  <HashLoader color="#070A52" size={16} />
-                  &nbsp;Resending...
-                </span>
-              ) : (
-                "Resend OTP"
-              )}
-            </button>
-          )}
-        </div>
-
-        {msg && (
-          <div
-            className={`text-center mt-2 rounded px-3 py-2 text-base
-              ${type === "success"
-                ? "text-green-700 bg-green-100 border-l-4 border-green-400"
-                : type === "error"
-                ? "text-red-700 bg-red-100 border-l-4 border-red-400"
-                : "text-blue-700 bg-blue-100 border-l-4 border-blue-300"
-              }
-                  ${fadeAnim}
-            `}
-          >
-            {msg}
+          <div className="text-center">
+            <img src={logoUrl} className="mx-auto w-32 mb-4" alt="UrbanTales" />
+            <h2 className="text-2xl font-bold text-[#070A52] mb-2">
+              User OTP Verification
+            </h2>
+            <p className="text-sm text-gray-500">
+              Enter the 6-digit OTP sent to <br />
+              <span className="font-semibold text-gray-700">{email}</span>
+            </p>
+            <p className="text-xs text-blue-700 bg-blue-50 border-l-4 border-blue-300 px-2 py-1 mt-2 rounded">
+              If you don’t find your email in your inbox, please check your Spam/Junk folder.
+            </p>
           </div>
-        )}
-      </form>
+          <div className="flex justify-center items-center space-x-2">
+            {[...Array(6)].map((_, i) => (
+              <input
+                key={i}
+                maxLength={1}
+                type="text"
+                className="w-12 h-12 text-center text-xl font-bold border-2 border-gray-300 rounded-lg focus:border-[#070A52] focus:outline-none transition"
+                value={otp[i] || ""}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/, "");
+                  if (val) {
+                    const newOtp = otp.split("");
+                    newOtp[i] = val;
+                    setOTP(newOtp.join("").slice(0, 6));
+                    if (i < 5 && val) {
+                      e.target.nextSibling?.focus();
+                    }
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Backspace") {
+                    if (!otp[i] && i > 0) {
+                      const newOtp = otp.split("");
+                      newOtp[i - 1] = "";
+                      setOTP(newOtp.join(""));
+                      e.target.previousSibling?.focus();
+                    } else if (otp[i]) {
+                      const newOtp = otp.split("");
+                      newOtp[i] = "";
+                      setOTP(newOtp.join(""));
+                    }
+                  }
+                }}
+                autoFocus={i === 0}
+              />
+            ))}
+          </div>
+          <div className="text-center">
+            {timer > 0 ? (
+              <div className="flex items-center justify-center space-x-2">
+                <svg className="w-5 h-5 text-[#070A52]" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                </svg>
+                <span className={`text-sm font-semibold ${timer < 20 ? 'text-red-500' : 'text-gray-600'}`}>
+                  OTP expires in {formatTime(timer)}
+                </span>
+              </div>
+            ) : (
+              <p className="text-red-500 text-sm font-semibold">❌ OTP Expired</p>
+            )}
+          </div>
+          <button
+            className="w-full py-3 bg-gradient-to-r from-[#070A52] to-[#FFCC00] text-white font-semibold rounded-xl hover:shadow-lg transform hover:scale-[1.02] transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            type="submit"
+            disabled={loading || otp.length !== 6}
+          >
+            {loading ? <HashLoader color="#fff" size={20} /> : "Verify OTP"}
+          </button>
+          <div className="text-center">
+            {timer > 0 ? (
+              <p className="text-sm text-gray-500">
+                Didn't receive code?{" "}
+                <button
+                  type="button"
+                  className="text-[#070A52] font-semibold hover:underline"
+                  onClick={handleResend}
+                  disabled={resending}
+                >
+                  {resending ? "Resending..." : "Resend"}
+                </button>
+              </p>
+            ) : (
+              <button
+                type="button"
+                className="text-sm bg-gradient-to-r from-[#070A52] to-[#FFCC00] text-white px-6 py-2 rounded-full hover:shadow-md transition"
+                onClick={handleResend}
+                disabled={resending}
+              >
+                {resending ? "Resending..." : "Resend OTP"}
+              </button>
+            )}
+          </div>
+          {msg && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center text-green-600 bg-green-50 p-3 rounded-lg text-sm"
+            >
+              {msg}
+            </motion.div>
+          )}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center text-red-600 bg-red-50 p-3 rounded-lg text-sm"
+            >
+              {error}
+            </motion.div>
+          )}
+        </form>
+      </motion.div>
     </div>
   );
 }
