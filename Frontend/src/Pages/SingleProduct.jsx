@@ -1,30 +1,59 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import Navbar from "../Components/Navbar";
-import Footer from "../Components/Footer";
-import { HashLoader } from "react-spinners";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  FaStar, FaRegStar, FaStarHalfAlt, FaShoppingCart, FaBolt, 
-  FaHeart, FaRegHeart, FaCheckCircle, FaTruck, FaShieldAlt,
-  FaThumbsUp, FaRegThumbsUp, FaReply
+import {
+  FaChevronLeft,
+  FaChevronRight,
+  FaStar,
+  FaStarHalfAlt,
+  FaRegStar,
+  FaCheckCircle,
+  FaThumbsUp,
+  FaRegThumbsUp,
+  FaReply,
+  FaHeart,
+  FaRegHeart,
+  FaShoppingCart,
+  FaBolt,
+  FaTruck,
+  FaShieldAlt
 } from "react-icons/fa";
+import { HashLoader } from "react-spinners";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 
-const BASE_API_URL = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:3000";
+const BASE_API_URL = process.env.REACT_APP_API_URL || "";
 
-// Helper: get thumbnails for images/videos
-const getMediaItems = (product) => {
-  const arr = [];
-  if (product.images?.length) {
-    product.images.forEach(url => arr.push({ type: "image", url }));
+function getMediaItems(product) {
+  // Prefer explicit media order if provided
+  if (product?.mediaOrder && Array.isArray(product.mediaOrder) && product.mediaOrder.length) {
+    return product.mediaOrder;
   }
-  if (product.videos?.length) {
-    product.videos.forEach(url => arr.push({ type: "video", url }));
+
+  // Build a fallback media array from common fields (images, videos, single image)
+  const items = [];
+
+  if (Array.isArray(product?.images)) {
+    product.images.forEach((img) => {
+      items.push({ type: "image", url: img });
+    });
   }
-  if ((!product.images?.length) && product.image)
-    arr.unshift({ type: "image", url: product.image });
-  return arr;
-};
+
+  // Support an array of videos if available
+  if (Array.isArray(product?.videos)) {
+    product.videos.forEach((vid) => {
+      items.push({ type: "video", url: vid });
+    });
+  }
+
+  // Single-image fallback fields
+  if (product?.image && !items.length) {
+    items.push({ type: "image", url: product.image });
+  }
+
+  return items;
+}
+      
 
 // Star Rating Component
 const StarRating = ({ rating, size = "text-lg", showNumber = false }) => {

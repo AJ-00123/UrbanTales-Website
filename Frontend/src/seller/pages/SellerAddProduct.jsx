@@ -1,19 +1,15 @@
-// Frontend/src/seller/pages/SellerAddProduct.jsx
 import React, { useState, useRef, useEffect } from "react";
 import SellerNavbar from "../components/SellerNavbar";
 import { useSellerAuth } from "../context/SellerAuthContext";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { FaTrash, FaArrowLeft, FaArrowRight, FaSpinner, FaRegImage, FaRegPlayCircle } from "react-icons/fa";
+import { toast, ToastContainer } from "react-toastify";
 import axios from "axios";
-
-/* Rich seller add product with:
-   - Upload (files -> backend -> Cloudinary) or URL
-   - Auto-Arrange flipkart style (image first, then alt)
-   - Manual reorder via HTML5 drag/drop
-   - Submits mediaOrder + images + videos
-*/
+import "react-toastify/dist/ReactToastify.css";
 
 const CATEGORY_LIST = [
-  "fashion","electronic","furniture","kitchen","toys","cosmetic","food","sports","appliances"
+  "fashion", "electronic", "furniture", "kitchen", "toys", "cosmetic", "food", "sports", "appliances"
 ];
 
 const API_BASE = import.meta.env.VITE_BACKEND_API_URL || "http://localhost:3000";
@@ -27,13 +23,12 @@ export default function SellerAddProduct() {
     images: [], videos: [], delivery: ""
   });
 
-  const [imageMode, setImageMode] = useState("upload"); // upload | url
-  const [videoMode, setVideoMode] = useState("upload"); // upload | url
+  const [imageMode, setImageMode] = useState("upload");
+  const [videoMode, setVideoMode] = useState("upload");
   const [autoArrange, setAutoArrange] = useState(true);
-  const [mediaOrder, setMediaOrder] = useState([]); // merged array of {type, url}
+  const [mediaOrder, setMediaOrder] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState("");
 
   // drag refs for manual reorder
   const dragItem = useRef();
@@ -41,7 +36,6 @@ export default function SellerAddProduct() {
 
   const setField = (k, v) => setForm(s => ({ ...s, [k]: v }));
 
-  // upload file to backend route which saves to Cloudinary
   const uploadFile = async (file) => {
     if (!file) return null;
     const fd = new FormData();
@@ -54,15 +48,13 @@ export default function SellerAddProduct() {
       });
       return res.data.url || res.data.secure_url || null;
     } catch (e) {
-      console.error("upload error", e);
-      setErr("Upload failed. Try again.");
+      toast.error("Upload failed. Try again.");
       return null;
     } finally {
       setUploading(false);
     }
   };
 
-  // handle file input selection
   const handleFileChange = async (e, type) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -72,14 +64,13 @@ export default function SellerAddProduct() {
     else setField("videos", [...form.videos, url]);
   };
 
-  // add URL
   const addUrl = (type, url) => {
     if (!url) return;
     if (type === "image") setField("images", [...form.images, url]);
     else setField("videos", [...form.videos, url]);
   };
 
-  // build flipkart-style merged order (image first, alternate)
+  // Auto merge
   const buildAutoMerged = () => {
     const imgs = [...form.images];
     const vids = [...form.videos];
@@ -99,19 +90,15 @@ export default function SellerAddProduct() {
     return merged;
   };
 
-  // build manual merged (images then videos) as starting point
-  const buildManualMerged = () => {
-    return [
-      ...form.images.map(u => ({ type: "image", url: u })),
-      ...form.videos.map(u => ({ type: "video", url: u }))
-    ];
-  };
+  // Manual
+  const buildManualMerged = () => [
+    ...form.images.map(u => ({ type: "image", url: u })),
+    ...form.videos.map(u => ({ type: "video", url: u }))
+  ];
 
-  // whenever images/videos change: update mediaOrder
   useEffect(() => {
     if (autoArrange) setMediaOrder(buildAutoMerged());
     else {
-      // preserve previous order where possible, append new items
       const prevUrls = new Set(mediaOrder.map(m => m.url));
       const current = buildManualMerged();
       const preserved = current.filter(m => prevUrls.has(m.url));
@@ -121,7 +108,7 @@ export default function SellerAddProduct() {
     // eslint-disable-next-line
   }, [form.images.length, form.videos.length, autoArrange]);
 
-  // drag handlers for manual reorder
+  // drag handlers
   const handleDragStart = (e, pos) => { dragItem.current = pos; };
   const handleDragEnter = (e, pos) => { dragOverItem.current = pos; };
   const handleDragEnd = (e) => {
@@ -134,18 +121,15 @@ export default function SellerAddProduct() {
     setMediaOrder(list);
   };
 
-  // remove media (both from source arrays and mediaOrder)
   const removeAt = (idx) => {
     const item = mediaOrder[idx];
     if (!item) return;
     if (item.type === "image") setField("images", form.images.filter(u => u !== item.url));
     else setField("videos", form.videos.filter(u => u !== item.url));
-    // rebuild mediaOrder
     if (autoArrange) setMediaOrder(buildAutoMerged());
     else setMediaOrder(prev => prev.filter((_, i) => i !== idx));
   };
 
-  // move left/right fallback
   const moveItem = (idx, dir) => {
     const arr = [...mediaOrder];
     const target = dir === "left" ? idx - 1 : idx + 1;
@@ -154,13 +138,10 @@ export default function SellerAddProduct() {
     setMediaOrder(arr);
   };
 
-  // final merged for submit
   const finalMergedForSubmit = () => autoArrange ? buildAutoMerged() : mediaOrder;
 
-  // submit product
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setErr("");
     setSaving(true);
     try {
       if (!seller || !seller._id) throw new Error("Login required.");
@@ -187,10 +168,10 @@ export default function SellerAddProduct() {
 
       await axios.post(`${API_BASE}/api/sellers/products/with-stock`, payload,
         { headers: { Authorization: `Bearer ${token}` } });
-      navigate("/seller/products");
+      toast.success("Product added!");
+      setTimeout(() => navigate("/seller/products"), 700);
     } catch (err) {
-      console.error(err);
-      setErr(err.response?.data?.error || err.message || "Submit failed.");
+      toast.error(err.response?.data?.error || err.message || "Submit failed.");
       if (err.response?.status === 401) logout();
     } finally {
       setSaving(false);
@@ -200,135 +181,166 @@ export default function SellerAddProduct() {
   return (
     <>
       <SellerNavbar />
-      <div className="min-h-screen bg-[#f6f5ff] py-10 px-4">
+      <ToastContainer position="top-center" />
+      <motion.div
+        className="min-h-screen bg-gradient-to-br from-[#f6f5ff] to-[#edeaff] py-14 px-6"
+        initial={{ opacity: 0, y: 60 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -60 }}
+        transition={{ duration: 0.5 }}
+      >
         <div className="max-w-5xl mx-auto">
-          <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-lg">
-            <h2 className="text-2xl font-bold text-[#2a0055] mb-4">Add New Product</h2>
-            {err && <div className="mb-3 text-red-600">{err}</div>}
+          <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl p-8 md:p-12 space-y-6">
+            <motion.h2
+              className="text-3xl font-black text-[#2a0055] mb-1 drop-shadow dark:text-[#18102f]"
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.15 }}>
+              Add New Product
+            </motion.h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="md:col-span-2 space-y-3">
-                <input className="w-full p-3 border rounded" placeholder="Product name" value={form.name} onChange={e => setField("name", e.target.value)} />
-                <select className="w-full p-3 border rounded" value={form.category} onChange={e => setField("category", e.target.value)}>
+            <div className="grid md:grid-cols-3 gap-7">
+              {/* All Inputs */}
+              <div className="md:col-span-2 space-y-4">
+                <input className="w-full p-4 rounded-xl border-2 shadow focus:ring-2 focus:ring-[#2a0055] text-lg" placeholder="Product name" value={form.name} onChange={e => setField("name", e.target.value)} />
+                <select className="w-full p-4 rounded-xl border-2 shadow" value={form.category} onChange={e => setField("category", e.target.value)}>
                   <option value="">-- Select Category --</option>
                   {CATEGORY_LIST.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <input type="number" min="1" placeholder="Stock" className="p-3 border rounded" value={form.stock} onChange={e => setField("stock", e.target.value)} />
-                  <input type="number" min="1" placeholder="Price" className="p-3 border rounded" value={form.price} onChange={e => setField("price", e.target.value)} />
+                <div className="flex gap-4">
+                  <input type="number" min="1" placeholder="Stock" className="p-4 rounded-xl border-2 shadow flex-1" value={form.stock} onChange={e => setField("stock", e.target.value)} />
+                  <input type="number" min="1" placeholder="Price" className="p-4 rounded-xl border-2 shadow flex-1" value={form.price} onChange={e => setField("price", e.target.value)} />
                 </div>
-
-                <textarea placeholder="Short description" className="w-full p-3 border rounded" rows={4} value={form.description} onChange={e => setField("description", e.target.value)}></textarea>
-                <input placeholder="Delivery info" className="w-full p-3 border rounded" value={form.delivery} onChange={e => setField("delivery", e.target.value)} />
+                <textarea placeholder="Short description" className="w-full p-4 rounded-xl border-2 shadow" rows={3} value={form.description} onChange={e => setField("description", e.target.value)} />
+                <input placeholder="Delivery info" className="w-full p-4 rounded-xl border-2 shadow" value={form.delivery} onChange={e => setField("delivery", e.target.value)} />
               </div>
 
-              <div className="p-4 border rounded bg-white space-y-4">
-                <div>
-                  <div className="font-semibold">Auto Arrange (Flipkart style)</div>
-                  <div className="text-xs text-gray-500">Toggle to auto alternate image & video (image first). Turn off to reorder manually.</div>
-                  <div className="mt-2 flex gap-2">
-                    <button type="button" onClick={() => setAutoArrange(true)} className={`px-3 py-1 rounded ${autoArrange ? "bg-[#2a0055] text-white" : "bg-white border"}`}>Auto</button>
-                    <button type="button" onClick={() => setAutoArrange(false)} className={`px-3 py-1 rounded ${!autoArrange ? "bg-[#2a0055] text-white" : "bg-white border"}`}>Manual</button>
+              {/* Media Uploads */}
+              <div className="flex flex-col gap-6">
+                <motion.div layout className="p-3 bg-[#fafaff] rounded-xl shadow-xl border-2 space-y-2">
+                  <div className="flex items-center gap-2 font-bold text-[#2a0055] text-lg">
+                    <FaRegImage /> Images
                   </div>
-                </div>
-
-                <div>
-                  <div className="font-semibold">Images</div>
-                  <div className="mt-2 flex gap-2 items-center">
-                    <label className={`px-2 py-1 border rounded ${imageMode==="upload"?"bg-[#2a0055] text-white":"bg-white"}`}><input type="radio" checked={imageMode==="upload"} onChange={() => setImageMode("upload")} /> Upload</label>
-                    <label className={`px-2 py-1 border rounded ${imageMode==="url"?"bg-[#2a0055] text-white":"bg-white"}`}><input type="radio" checked={imageMode==="url"} onChange={() => setImageMode("url")} /> URL</label>
+                  <div className="flex justify-center my-2 rounded-xl">
+                    <button type="button" className={`flex-1 px-4 py-2 font-bold rounded-l-xl border ${imageMode === "upload" ? "bg-[#2a0055] text-white" : "bg-white"}`} onClick={() => setImageMode("upload")}>Upload</button>
+                    <button type="button" className={`flex-1 px-4 py-2 font-bold rounded-r-xl border ${imageMode === "url" ? "bg-[#2a0055] text-white" : "bg-white"}`} onClick={() => setImageMode("url")}>URL</button>
                   </div>
-                  <div className="mt-2">
-                    {imageMode === "upload" ? (
-                      <input type="file" accept="image/*" onChange={(e)=>handleFileChange(e,"image")} />
-                    ) : (
-                      <div className="flex gap-2">
-                        <input id="img-url" className="flex-1 p-2 border rounded" placeholder="Paste image URL" />
-                        <button type="button" className="px-3 py-1 bg-[#2a0055] text-white rounded" onClick={()=>{
-                          const el = document.getElementById("img-url");
-                          if(el?.value){ addUrl("image", el.value.trim()); el.value=""; }
-                        }}>Add</button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="font-semibold">Videos</div>
-                  <div className="mt-2 flex gap-2 items-center">
-                    <label className={`px-2 py-1 border rounded ${videoMode==="upload"?"bg-[#2a0055] text-white":"bg-white"}`}><input type="radio" checked={videoMode==="upload"} onChange={()=>setVideoMode("upload")} /> Upload</label>
-                    <label className={`px-2 py-1 border rounded ${videoMode==="url"?"bg-[#2a0055] text-white":"bg-white"}`}><input type="radio" checked={videoMode==="url"} onChange={()=>setVideoMode("url")} /> URL</label>
-                  </div>
-                  <div className="mt-2">
-                    {videoMode === "upload" ? (
-                      <input type="file" accept="video/*" onChange={(e)=>handleFileChange(e,"video")} />
-                    ) : (
-                      <div className="flex gap-2">
-                        <input id="vid-url" className="flex-1 p-2 border rounded" placeholder="Paste video URL" />
-                        <button type="button" className="px-3 py-1 bg-[#2a0055] text-white rounded" onClick={()=>{
-                          const el = document.getElementById("vid-url");
-                          if(el?.value){ addUrl("video", el.value.trim()); el.value=""; }
-                        }}>Add</button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="text-sm text-gray-600">
-                  Images: {form.images.length} · Videos: {form.videos.length} {uploading && "· Uploading..."}
-                </div>
-              </div>
-            </div>
-
-            {/* Media preview & reorder */}
-            <div className="mt-6">
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="font-semibold">Media Preview & Order</h3>
-                <div className="text-xs text-gray-500">Drag to reorder (manual mode) · Remove · Move left/right</div>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {mediaOrder.length === 0 && <div className="text-sm text-gray-400 col-span-full">No media yet</div>}
-
-                {mediaOrder.map((m, idx) => (
-                  <div key={m.url + idx}
-                    draggable={!autoArrange}
-                    onDragStart={(e)=>!autoArrange && handleDragStart(e, idx)}
-                    onDragEnter={(e)=>!autoArrange && handleDragEnter(e, idx)}
-                    onDragEnd={(e)=>!autoArrange && handleDragEnd(e)}
-                    className="relative border rounded overflow-hidden bg-white"
-                  >
-                    {m.type==="image" ? (
-                      <img src={m.url} alt="media" className="w-full h-36 object-cover" />
-                    ) : (
-                      <video src={m.url} controls className="w-full h-36 object-cover bg-black" />
-                    )}
-                    <div className="p-2 flex items-center justify-between">
-                      <div className="text-xs font-medium text-gray-700">{m.type.toUpperCase()}</div>
-                      <div className="flex gap-2 items-center">
-                        {!autoArrange && (
-                          <>
-                            <button type="button" onClick={()=>moveItem(idx,"left")} className="text-xs px-2 py-1 border rounded">◀</button>
-                            <button type="button" onClick={()=>moveItem(idx,"right")} className="text-xs px-2 py-1 border rounded">▶</button>
-                          </>
-                        )}
-                        <button type="button" onClick={()=>removeAt(idx)} className="text-xs px-2 py-1 bg-red-50 text-red-600 border rounded">Remove</button>
-                      </div>
+                  {imageMode === "upload" ? (
+                    <input className="w-full my-2" type="file" accept="image/*" onChange={(e) => handleFileChange(e, "image")}/>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input id="img-url" className="flex-1 p-2 rounded-lg border" placeholder="Paste image URL" />
+                      <button type="button" className="px-3 py-1 bg-[#2a0055] text-white rounded-lg" onClick={()=>{
+                        const el = document.getElementById("img-url");
+                        if(el?.value){ addUrl("image", el.value.trim()); el.value=""; }
+                      }}>Add</button>
                     </div>
+                  )}
+                  <div className="text-xs text-gray-600 mt-1">
+                    {form.images.length} selected {uploading && <FaSpinner className="inline animate-spin" />}
                   </div>
-                ))}
+                </motion.div>
+
+                <motion.div layout className="p-3 bg-[#fafaff] rounded-xl shadow-xl border-2 space-y-2">
+                  <div className="flex items-center gap-2 font-bold text-[#2a0055] text-lg">
+                    <FaRegPlayCircle /> Videos
+                  </div>
+                  <div className="flex justify-center my-2 rounded-xl">
+                    <button type="button" className={`flex-1 px-4 py-2 font-bold rounded-l-xl border ${videoMode === "upload" ? "bg-[#2a0055] text-white" : "bg-white"}`} onClick={() => setVideoMode("upload")}>Upload</button>
+                    <button type="button" className={`flex-1 px-4 py-2 font-bold rounded-r-xl border ${videoMode === "url" ? "bg-[#2a0055] text-white" : "bg-white"}`} onClick={() => setVideoMode("url")}>URL</button>
+                  </div>
+                  {videoMode === "upload" ? (
+                    <input className="w-full my-2" type="file" accept="video/*" onChange={(e) => handleFileChange(e, "video")}/>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input id="vid-url" className="flex-1 p-2 rounded-lg border" placeholder="Paste video URL" />
+                      <button type="button" className="px-3 py-1 bg-[#2a0055] text-white rounded-lg" onClick={()=>{
+                        const el = document.getElementById("vid-url");
+                        if(el?.value){ addUrl("video", el.value.trim()); el.value=""; }
+                      }}>Add</button>
+                    </div>
+                  )}
+                  <div className="text-xs text-gray-600 mt-1">
+                    {form.videos.length} selected {uploading && <FaSpinner className="inline animate-spin" />}
+                  </div>
+                </motion.div>
               </div>
             </div>
 
-            <div className="mt-6 flex gap-3">
-              <button disabled={saving || uploading} className="px-5 py-3 bg-[#2a0055] text-white rounded-lg" type="submit">{saving ? "Saving..." : "Add Product"}</button>
-              <button type="button" onClick={()=>{ setForm({name:"",category:"",description:"",stock:"",price:"",images:[],videos:[],delivery:""}); setMediaOrder([]); }} className="px-4 py-3 border rounded">Reset</button>
+            {/* Media Preview */}
+            <div className="mt-6">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="font-semibold text-xl">Media Preview & Order</h3>
+                <div className="text-xs text-gray-500">Drag to reorder (Manual mode)</div>
+              </div>
+              <motion.div layout className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                <AnimatePresence>
+                  {mediaOrder.length === 0 && (
+                    <motion.div className="text-sm text-gray-400 col-span-full"
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                      No media yet
+                    </motion.div>
+                  )}
+                  {mediaOrder.map((m, idx) => (
+                    <motion.div
+                      key={m.url + idx}
+                      layout
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.18 }}
+                      draggable={!autoArrange}
+                      onDragStart={e => !autoArrange && handleDragStart(e, idx)}
+                      onDragEnter={e => !autoArrange && handleDragEnter(e, idx)}
+                      onDragEnd={e => !autoArrange && handleDragEnd(e)}
+                      className="relative border rounded-2xl overflow-hidden bg-white shadow-lg"
+                    >
+                      {m.type === "image" ? (
+                        <motion.img src={m.url} alt="media"
+                          whileHover={{ scale: 1.07 }} className="w-full h-24 md:h-32 lg:h-40 object-cover cursor-pointer" />
+                      ) : (
+                        <motion.video src={m.url} controls
+                          whileHover={{ scale: 1.04 }} className="w-full h-24 md:h-32 lg:h-40 object-cover bg-black cursor-pointer" />
+                      )}
+                      <div className="p-2 flex items-center justify-between">
+                        <div className="text-xs font-medium text-gray-700">{m.type.toUpperCase()}</div>
+                        <div className="flex gap-2 items-center">
+                          {!autoArrange && (
+                            <>
+                              <button type="button" onClick={() => moveItem(idx,"left")} className="text-xs px-2 py-1 border rounded"><FaArrowLeft /></button>
+                              <button type="button" onClick={() => moveItem(idx,"right")} className="text-xs px-2 py-1 border rounded"><FaArrowRight /></button>
+                            </>
+                          )}
+                          <button type="button" onClick={() => removeAt(idx)} className="text-xs px-2 py-1 bg-red-50 text-red-600 border rounded"><FaTrash /></button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </motion.div>
             </div>
 
+            <div className="mt-8 flex flex-col md:flex-row gap-4">
+              <motion.button
+                disabled={saving || uploading}
+                className="w-full md:w-auto px-7 py-4 bg-[#2a0055] text-white rounded-xl font-extrabold text-lg shadow-md flex items-center justify-center gap-2"
+                type="submit"
+                whileTap={{ scale: 0.97 }}
+              >
+                {saving ? <FaSpinner className="animate-spin" /> : null}
+                {saving ? "Saving..." : "Add Product"}
+              </motion.button>
+              <motion.button type="button" onClick={() => {
+                setForm({ name: "", category: "", description: "", stock: "", price: "", images: [], videos: [], delivery: "" });
+                setMediaOrder([]);
+              }} className="px-7 py-4 bg-white border rounded-xl font-bold text-lg shadow"
+                whileTap={{ scale: 0.94 }}>
+                Reset
+              </motion.button>
+            </div>
           </form>
         </div>
-      </div>
+      </motion.div>
     </>
   );
 }

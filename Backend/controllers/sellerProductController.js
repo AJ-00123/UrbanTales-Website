@@ -1,4 +1,4 @@
-import Product from "../models/Product.js";
+import Product from "../models/product.js";
 
 // GET /api/sellers/products
 export const list = async (req, res) => {
@@ -15,7 +15,7 @@ export const list = async (req, res) => {
 // POST /api/sellers/products
 export const add = async (req, res) => {
   try {
-    const { name, category, description, stock, price, image, delivery } = req.body;
+    const { name, category, description, stock, price, image, images, videos, delivery, mediaOrder } = req.body;
     if (!name || !category || !stock || !price) {
       return res.status(400).json({ message: "All required fields must be provided!" });
     }
@@ -27,7 +27,10 @@ export const add = async (req, res) => {
       stock,
       price,
       image,
-      delivery
+      images: images || [],
+      videos: videos || [],
+      delivery,
+      mediaOrder: mediaOrder || []
     });
     await product.save();
     res.status(201).json(product);
@@ -36,10 +39,10 @@ export const add = async (req, res) => {
   }
 };
 
-// Optionally POST /api/sellers/products/with-stock
+// POST /api/sellers/products/with-stock
 export const addProductWithStock = async (req, res) => {
   try {
-    const { name, category, description, stock, price, image, delivery } = req.body;
+    const { name, category, description, stock, price, image, images, videos, delivery, mediaOrder } = req.body;
     if (!name || !category || !stock || !price) {
       return res.status(400).json({ message: "All required fields must be provided!" });
     }
@@ -51,7 +54,10 @@ export const addProductWithStock = async (req, res) => {
       stock,
       price,
       image,
-      delivery
+      images: images || [],
+      videos: videos || [],
+      delivery,
+      mediaOrder: mediaOrder || []
     });
     await product.save();
     res.status(201).json(product);
