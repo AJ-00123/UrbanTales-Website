@@ -936,15 +936,7 @@ export default function SingleProduct() {
           </button>
         </div>
 
-        {/* ✅ Floating Feedback Button */}
-        <button
-          onClick={() => setShowReviewForm(true)}
-          className="fixed bottom-20 right-4 z-40 rounded-full shadow-lg bg-[#070A52] text-white px-4 py-3 flex items-center gap-2 hover:opacity-90"
-        >
-          <FaCommentDots />
-          Feedback
-        </button>
-
+        
         {/* ✅ Fullscreen viewer (swipe + pinch-to-zoom) */}
         <AnimatePresence>
           {showFull && (
